@@ -117,7 +117,6 @@ int main()
     unsigned int envCubemap;
     HDR2CubeAndIrradianceMap("./resources/hdrs/zwartkops_straight_afternoon_2k.hdr", envCubemap, irradianceMap);
     
-    //HDR2CubeAndIrradianceMap("./resources/hdrs/meadow_4k.hdr", envCubemap, irradianceMap);
     // then before rendering, configure the viewport to the original framebuffer's screen dimensions
     int scrWidth, scrHeight;
     glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
