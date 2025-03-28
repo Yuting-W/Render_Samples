@@ -154,7 +154,7 @@ int main()
         glm::mat4 lightProjection, lightView;
         glm::mat4 lightSpaceMatrix;
         float near_plane = 100.0f, far_plane = 200.5f;
-        lightProjection = glm::ortho(-10.0f, 20.0f, -10.0f, 20.0f, near_plane, far_plane);
+        lightProjection = glm::ortho(-10.0f, 20.0f, -10.0f, 40.0f, near_plane, far_plane);
         lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
         // render scene from light's point of view
@@ -162,10 +162,9 @@ int main()
         simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
         glm::mat4 model = glm::mat4(1.0f);
         //model = glm::scale(model, glm::vec3(3.0, 3.0, 3.0));
-        model = glm::translate(model, glm::vec3(0.0, 0.0, -10.0));
-        model = glm::rotate(model, glm::radians(-0.f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 model2 = glm::mat4(1.0f);
-        model2 = glm::translate(model2, glm::vec3(6.0, 0.0, -9.0));
+        model = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
+        //model = glm::rotate(model, glm::radians(0.f), glm::vec3(0.0f, 1.0f, 0.0f));
+        //model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
         
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
