@@ -9,7 +9,7 @@ const unsigned int SCR_HEIGHT = 1080;
 
 
 // camera
-Camera camera(glm::vec3(0.0f, 10.0f, 13.0f));
+Camera camera(glm::vec3(0.0f, 15.0f, 18.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -141,8 +141,8 @@ unsigned int SetCubemapToFrame(unsigned int captureWidth, unsigned int capturesH
 // pbr: convert HDR equirectangular environment map to cubemap equivalent and solve diffuse integral by convolution to create an irradiance (cube)map
 void HDR2CubeAndIrradianceMap(const char* path, unsigned int& envCubemap, unsigned int& irradianceMap)
 {
-    Shader equirectangularToCubemapShader("./shader/6.2.cubemap.vs", "./shader/6.2.equirectangular_to_cubemap.fs");
-    Shader irradianceShader("./shader/6.2.cubemap.vs", "./shader/6.2.irradiance_convolution.fs");
+    Shader equirectangularToCubemapShader("./shader/cubemap.vs", "./shader/equirectangular_to_cubemap.fs");
+    Shader irradianceShader("./shader/cubemap.vs", "./shader/irradiance_convolution.fs");
     // pbr: setup framebuffer
 // ----------------------
     unsigned int captureFBO;

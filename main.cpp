@@ -64,21 +64,18 @@ int main()
     glDepthFunc(GL_LEQUAL); // set depth function to less than AND equal for skybox depth trick.
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader ModelShader("./shader/6.1.PHR.vs", "./shader/6.1.PHR.fs");
+    Shader ModelShader("./shader/3Dmodel.vs", "./shader/PHR.fs");
     
-    Shader backgroundShader("./shader/6.2.background.vs", "./shader/6.2.background.fs");
-    Shader planeShader("./shader/5.3.1.shadowed.vs", "./shader/5.3.1.shadowed.fs");
+    Shader backgroundShader("./shader/skybox.vs", "./shader/skybox.fs");
+    Shader planeShader("./shader/shadowedplane.vs", "./shader/shadowed.fs");
 
     
 
     ModelShader.use();
     
-    ModelShader.setInt("texture_diffuse1", 0);
-    ModelShader.setInt("texture_specular1", 1);
-    ModelShader.setInt("irradianceMap", 2);
-    ModelShader.setInt("shadowMap", 3);
-    //ModelShader.setFloat("metallic", 0.5f);
-    //ModelShader.setFloat("roughness", 0.5f);
+
+    ModelShader.setInt("irradianceMap", 0);
+    ModelShader.setInt("shadowMap", 1);
     ModelShader.setFloat("ao", 1.0f);
 
     backgroundShader.use();
@@ -92,27 +89,27 @@ int main()
 
 
     Model ourModel("./resources/objects/nanosuit/nanosuit.obj");
+    //Model ourModel("./resources/scene/Exports/StDunstansEast03.obj"); // large
+    //Model ourModel("./resources/scene/batiment1/batiment1_lowpoly.obj");
     // lights
     // ------
     // lighting
     //glm::vec3 lightPos(70,100,-15);
     glm::vec3 lightPos(100.f, 100.f, 50.f);
     glm::vec3 lightPositions[] = {
-        glm::vec3(10.0f, 10.0f, 13.0f),
-        glm::vec3(-10.0f, 10.0f, 13.0f),
+        glm::vec3(10.0f, 20.0f, 13.0f),
+        glm::vec3(-10.0f, 20.0f, 13.0f),
         lightPos,
         lightPos,
     };
     glm::vec3 lightColors[] = {
-        glm::vec3(20.0f,0.0f, 0.0f),
-        glm::vec3(0.0f, 20.0f, 0.0f),
+        glm::vec3(80.0f,0.0f, 0.0f),
+        glm::vec3(0.0f, 80.0f, 0.0f),
         glm::vec3(9000.0f, 9000.0f, 9000.0f),
         glm::vec3(0.0f, 0.0f, 0.0f)
     };
     float lightArea = 200.0f;
-    int nrRows = 7;
-    int nrColumns = 7;
-    float spacing = 2.5;
+
     unsigned int irradianceMap;
     unsigned int envCubemap;
     HDR2CubeAndIrradianceMap("./resources/hdrs/zwartkops_straight_afternoon_2k.hdr", envCubemap, irradianceMap);
@@ -128,7 +125,7 @@ int main()
     
     //shadowing set
     const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
-    Shader simpleDepthShader("./shader/5.3.1.shadow_mapping_depth.vs", "./shader/5.3.1.shadow_mapping_depth.fs");
+    Shader simpleDepthShader("./shader/shadow_mapping_depth.vs", "./shader/shadow_mapping_depth.fs");
     unsigned int depthMap, depthMapFBO;
     ShadowingSet(SHADOW_WIDTH, SHADOW_HEIGHT, depthMap, depthMapFBO);
     // render loop
@@ -147,14 +144,14 @@ int main()
 
         // render
         // ------
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // render depth of scene to texture (from light's perspective)
         // --------------------------------------------------------------
         glm::mat4 lightProjection, lightView;
         glm::mat4 lightSpaceMatrix;
         float near_plane = 100.0f, far_plane = 200.5f;
-        lightProjection = glm::ortho(-10.0f, 20.0f, -10.0f, 40.0f, near_plane, far_plane);
+        lightProjection = glm::ortho(-10.0f, 20.0f, -10.0f, 20.0f, near_plane, far_plane);
         lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
         // render scene from light's point of view
@@ -172,8 +169,7 @@ int main()
         glCullFace(GL_FRONT);
         simpleDepthShader.setMat4("model", model);
         ourModel.Draw(simpleDepthShader);
-        //simpleDepthShader.setMat4("model", model2);
-        //ourModel.Draw(simpleDepthShader);
+
         glCullFace(GL_BACK);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -187,7 +183,7 @@ int main()
         //vs
         
         ModelShader.setMat4("model", model);
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 200.0f);
         glm::mat4 view = camera.GetViewMatrix();
         ModelShader.setMat4("projection", projection);
         ModelShader.setMat4("view", view);
@@ -197,9 +193,9 @@ int main()
         //fs
         // bind pre-computed IBL data
         ModelShader.setVec3("DirectLightPos", lightPos);
-        glActiveTexture(GL_TEXTURE2);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-        glActiveTexture(GL_TEXTURE3);
+        glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, depthMap);
         ModelShader.setVec3("camPos", camera.Position);
         for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]);  i++)
@@ -207,10 +203,8 @@ int main()
             ModelShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
             ModelShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
         }
-
+        ModelShader.setFloat("lightArea", lightArea);
         ourModel.Draw(ModelShader);
-        //ModelShader.setMat4("model", model2);
-        //ourModel.Draw(ModelShader);
         // render plane 
         //--
         planeShader.use();
@@ -218,7 +212,7 @@ int main()
 
         float ftemp = 30.f;
         model = glm::translate(model, glm::vec3(5.0f, ftemp, 0.0f));
-        model = glm::rotate(model,-20.f, glm::vec3(0.f,  1.f,  0.f));
+        model = glm::rotate(model, -20.f, glm::vec3(0.f, 1.f, 0.f));
         model = glm::scale(model, glm::vec3(ftemp));
         planeShader.setMat4("model", model);
         planeShader.setMat4("projection", projection);
@@ -234,6 +228,7 @@ int main()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, depthMap);
         renderPlane();
+
         // render skybox (render as last to prevent overdraw)
         //----------------------------------------------------------
         backgroundShader.use();

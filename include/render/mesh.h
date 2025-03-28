@@ -6,7 +6,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "render/shader_s.h"
-
+#include <set>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -23,69 +24,154 @@ struct Vertex {
 	int m_BoneIDs[MAX_BONE_INFLUENCE]; //bone indexes which will influence this vertex
 	float m_Weights[MAX_BONE_INFLUENCE]; // weithts of each bone
 };
+enum TextureType {
+	TexAlbedo, TexNormal, TexMetalness, TexRoughness, TexEmission, TexAmbientOcclusion, TexSpecular, TexLast
+};
 
 struct Texture {
 	unsigned int id;
-	std::string type;
+	std::set<TextureType> types;
 	std::string path;
+	int num_channels;
+	Texture(const std::string& base_name) {
+		this->base_name = base_name;
+	}
+
+	static std::string get_short_name_of_texture_type(TextureType texture_type) {
+		if (texture_type == TexAlbedo) {
+			return "alb";
+		}
+		else if (texture_type == TexNormal) {
+			return "norm";
+		}
+		else if (texture_type == TexMetalness) {
+			return "metal";
+		}
+		else if (texture_type == TexRoughness) {
+			return "rough";
+		}
+		else if (texture_type == TexEmission) {
+			return "emi";
+		}
+		else if (texture_type == TexAmbientOcclusion) {
+			return "occ";
+		}
+		else {
+			return "spec";
+		}
+	}
+
+	static std::string get_long_name_of_texture_type(TextureType texture_type) {
+		if (texture_type == TexAlbedo) {
+			return "texture_albedo";
+		}
+		else if (texture_type == TexNormal) {
+			return "texture_normal";
+		}
+		else if (texture_type == TexMetalness) {
+			return "texture_metalness";
+		}
+		else if (texture_type == TexRoughness) {
+			return "texture_roughness";
+		}
+		else if (texture_type == TexEmission) {
+			return "texture_emission";
+		}
+		else if (texture_type == TexAmbientOcclusion) {
+			return "texture_ambient_occlusion";
+		}
+		else {
+			return "texture_specular";
+		}
+	}
+
+	std::string get_name() {
+		std::string output_name = base_name;
+		for (auto it = types.begin(); it != types.end(); it++) {
+			output_name += "_" + get_short_name_of_texture_type(*it);
+		}
+		return output_name;
+	}
+private:
+	std::string base_name;
 };
 
+enum FileFormat {
+	Default, glTF
+};
 
+struct Material {
+	std::string name;
+	std::map<TextureType, Texture*> textures;
+	FileFormat format;
+
+	Material(const std::string& name) {
+		this->name = name;
+	}
+};
 
 class Mesh {
 public:
 	//mesh date
+	std::string name;
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
-	std::vector<Texture> textures;
+	Material* material;
 	unsigned int VAO; 
 
 	//constuctor
-	Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures)
+	Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, Material* material)
 	{
 		this->vertices = vertices;
 		this->indices = indices;
-		this->textures = textures;
+		this->material = material;
 		setupMesh();  // set VAO,VBO,VEO
 	}
 
-	void Draw(Shader& shader)
+	// render the mesh
+	void Draw(Shader& shader, Material* draw_material, bool disable_depth_test)
 	{
-		// bind appropriate textures
-		unsigned int diffuseNr  = 1;
-		unsigned int specularNr = 1;
-		unsigned int normalNr   = 1;
-		unsigned int heightNr   = 1;
-
-		for (unsigned int i = 0; i < textures.size(); i++)
-		{
-			glActiveTexture(GL_TEXTURE0 + i);  // active texture
-
-			std::string number;
-			std::string name = textures[i].type;
-			if (name == "texture_diffuse")
-				number = std::to_string(diffuseNr++);
-			else if(name == "texture_specular")
-				number = std::to_string(specularNr++);
-			else if (name == "texture_normal")      //used to bump texture mapping / normal Mapping
-				number = std::to_string(normalNr++);
-			else if (name == "texture_height") 
-				number = std::to_string(heightNr++);
-			glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);  // shader texture, eg: texture_diffuse1, texture_diffuse2, texture_diffuse3
-
-			
-			glBindTexture(GL_TEXTURE_2D, textures[i].id);// texture mast be 2d
+		if (disable_depth_test) {
+			glDisable(GL_DEPTH_TEST);
 		}
+
+		const unsigned int OFFSET_TEXTURES = 3; // Accounting for PBR indirect light textures (irradiance, prefilter and BRDF maps)
+
+		if (draw_material == nullptr) {
+			draw_material = this->material;
+		}
+
+		shader.setInt("material_format", draw_material->format);
+
+		int num_active_textures = 0;
+		for (int type = TexAlbedo; type < TexLast; type++) {
+			TextureType texture_type = (TextureType)type;
+			std::string str_texture_type = Texture::get_long_name_of_texture_type(texture_type);
+			if (draw_material->textures.find(texture_type) != draw_material->textures.end()) {
+				Texture* texture = draw_material->textures[texture_type];
+				glActiveTexture(GL_TEXTURE0 + OFFSET_TEXTURES + num_active_textures);
+				shader.setInt(str_texture_type, OFFSET_TEXTURES + num_active_textures);
+				shader.setInt("has_" + str_texture_type, true);
+				glBindTexture(GL_TEXTURE_2D, texture->id);
+				num_active_textures++;
+			}
+			else {
+				shader.setInt("has_" + str_texture_type, false);
+			}
+		}
+
 
 		// draw mesh
 		glBindVertexArray(VAO);
 		glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 
-		// always good practice to set everything back to defaults once configured. ??
+		// always good practice to set everything back to defaults once configured.
 		glActiveTexture(GL_TEXTURE0);
 
-
+		if (disable_depth_test) {
+			glEnable(GL_DEPTH_TEST);
+		}
 	}
 
 private:
